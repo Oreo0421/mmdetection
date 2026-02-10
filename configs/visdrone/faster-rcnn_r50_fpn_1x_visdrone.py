@@ -189,11 +189,15 @@ param_scheduler = [
     ),
 ]
 
-# VisDrone 数据管道 - 多尺度训练，短边在 480~960 随机，适配小人+大车
+# VisDrone 数据管道 - 基准 1920x1080，多尺度训练短边 640~1080 随机
 train_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='Resize',scale = (1920, 1080 ), keep_ratio=True),
+    dict(
+        type='RandomResize',
+        scale=[(1920, 640), (1920, 1080)],
+        keep_ratio=True,
+    ),
     dict(type='RandomFlip', prob=0.5),
     dict(type='PackDetInputs'),
 ]
