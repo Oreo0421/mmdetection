@@ -2,7 +2,7 @@
 # 数据路径、class_name、metainfo 继承自 mmyolo/configs/visdrone.py
 # 环境: conda openmmlab
 
-_base_ = ['../../mmyolo/configs/visdrone.py']
+_base_ = ['../../../mmyolo/configs/visdrone.py']
 
 auto_scale_lr = dict(base_batch_size=16, enable=False)
 backend_args = None
@@ -10,10 +10,11 @@ default_scope = 'mmdet'
 dataset_type = 'CocoDataset'
 # data_root, class_name, metainfo, num_classes 从 _base_ (mmyolo/visdrone) 继承
 
+# param_scheduler 用 _delete_=True 清掉 base(mmyolo) 的 max_epochs 等参数，避免 ParamSchedulerHook() 报错
 default_hooks = dict(
     checkpoint=dict(interval=5, max_keep_ckpts=5, type='CheckpointHook'),
     logger=dict(interval=50, type='LoggerHook'),
-    param_scheduler=dict(type='ParamSchedulerHook'),
+    param_scheduler=dict(_delete_=True, type='ParamSchedulerHook'),
     sampler_seed=dict(type='DistSamplerSeedHook'),
     timer=dict(type='IterTimerHook'),
     visualization=dict(type='DetVisualizationHook'),
@@ -26,11 +27,26 @@ env_cfg = dict(
 )
 
 interval = 5
-load_from = 'https://download.openmmlab.com/mmdetection/v2.0/faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth'
+load_from = 'checkpoints/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth'
 log_level = 'INFO'
 log_processor = dict(by_epoch=True, type='LogProcessor', window_size=50)
 max_epochs = 100
 resume = False
+
+# VisDrone 数据与类别（与 mmyolo visdrone 一致，本文件解析时 base 变量未注入，需显式定义）
+data_root = '/mnt/data_hdd/fzhi/track_data/VisDrone/image_detection/data/'
+class_names = (
+    'car', 'people', 'van', 'truck', 'motor', 'bicycle',
+    'tricycle', 'awning-tricycle', 'pedestrian', 'bus',
+)
+num_classes = len(class_names)
+metainfo = dict(
+    classes=class_names,
+    palette=[
+        (220, 20, 60), (119, 11, 32), (0, 0, 142), (0, 0, 230), (106, 0, 228),
+        (0, 60, 100), (0, 80, 100), (0, 0, 70), (0, 0, 192), (250, 170, 30),
+    ],
+)
 
 # Faster R-CNN 模型 (完全覆盖 base 的 YOLOv5)
 model = dict(
@@ -166,7 +182,9 @@ model = dict(
     ),
 )
 
+# _delete_=True 完全替换 base 的 optim_wrapper，避免继承 mmyolo 的 YOLOv5OptimizerConstructor
 optim_wrapper = dict(
+    _delete_=True,
     type='OptimWrapper',
     optimizer=dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001),
 )
@@ -189,13 +207,13 @@ param_scheduler = [
     ),
 ]
 
-# VisDrone 数据管道 - 基准 1920x1080，多尺度训练短边 640~1080 随机
+# VisDrone 数据管道 - 1333x800 降低显存（1920x1080 易 OOM），多尺度短边 640~800
 train_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='RandomResize',
-        scale=[(1920, 640), (1920, 1080)],
+        scale=[(1333, 640), (1333, 800)],
         keep_ratio=True,
     ),
     dict(type='RandomFlip', prob=0.5),
@@ -204,7 +222,7 @@ train_pipeline = [
 
 test_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
-    dict(type='Resize', scale=(1920, 1080), keep_ratio=True),
+    dict(type='Resize', scale=(1333, 800), keep_ratio=True),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='PackDetInputs',
@@ -212,8 +230,10 @@ test_pipeline = [
     ),
 ]
 
+# 顶层 _delete_=True 完全替换 base 的 dataloader，避免继承 collate_fn/times 等
 train_dataloader = dict(
-    batch_size=4,
+    _delete_=True,
+    batch_size=2,
     num_workers=4,
     persistent_workers=True,
     pin_memory=True,
@@ -232,7 +252,8 @@ train_dataloader = dict(
 )
 
 val_dataloader = dict(
-    batch_size=4,
+    _delete_=True,
+    batch_size=2,
     num_workers=4,
     persistent_workers=True,
     drop_last=False,
@@ -251,7 +272,7 @@ val_dataloader = dict(
 
 test_dataloader = dict(
     _delete_=True,
-    batch_size=4,
+    batch_size=2,
     num_workers=4,
     persistent_workers=True,
     drop_last=False,
