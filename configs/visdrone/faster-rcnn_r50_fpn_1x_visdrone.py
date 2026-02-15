@@ -12,7 +12,7 @@ dataset_type = 'CocoDataset'
 
 # param_scheduler 用 _delete_=True 清掉 base(mmyolo) 的 max_epochs 等参数，避免 ParamSchedulerHook() 报错
 default_hooks = dict(
-    checkpoint=dict(interval=5, max_keep_ckpts=5, type='CheckpointHook'),
+    checkpoint=dict(interval=5, max_keep_ckpts=5, save_best='auto', type='CheckpointHook'),
     logger=dict(interval=50, type='LoggerHook'),
     param_scheduler=dict(_delete_=True, type='ParamSchedulerHook'),
     sampler_seed=dict(type='DistSamplerSeedHook'),
@@ -175,7 +175,7 @@ model = dict(
             min_bbox_size=0,
         ),
         rcnn=dict(
-            score_thr=0.05,
+            score_thr=0.02,
             nms=dict(type='nms', iou_threshold=0.5),
             max_per_img=300,
         ),
@@ -207,13 +207,13 @@ param_scheduler = [
     ),
 ]
 
-# VisDrone 数据管道 - 1333x800 降低显存（1920x1080 易 OOM），多尺度短边 640~800
+# VisDrone 数据管道 - 1600x900 适配 A6000 48GB，提升小目标检测
 train_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='RandomResize',
-        scale=[(1333, 640), (1333, 800)],
+        scale=[(1600, 720), (1600, 900)],
         keep_ratio=True,
     ),
     dict(type='RandomFlip', prob=0.5),
@@ -222,7 +222,7 @@ train_pipeline = [
 
 test_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
-    dict(type='Resize', scale=(1333, 800), keep_ratio=True),
+    dict(type='Resize', scale=(1600, 900), keep_ratio=True),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='PackDetInputs',
